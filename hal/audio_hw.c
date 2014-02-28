@@ -689,6 +689,7 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
     struct listnode *node;
     int status = 0;
 
+    ALOGI("%s: enter - uc_id %d", __func__, uc_id);
     usecase = get_usecase_from_list(adev, uc_id);
     if (usecase == NULL) {
         ALOGE("%s: Could not find the usecase(%d)", __func__, uc_id);
@@ -698,6 +699,7 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
     if ((usecase->type == VOICE_CALL) ||
         (usecase->type == VOIP_CALL)  ||
         (usecase->type == PCM_HFP_CALL)) {
+        ALOGI("%s: usecase VOICE_CALL", __func__);
         out_snd_device = platform_get_output_snd_device(adev->platform,
                                                         usecase->stream.out->devices);
         in_snd_device = platform_get_input_snd_device(adev->platform, usecase->stream.out->devices);
@@ -710,6 +712,7 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
          * usecase. This is to avoid switching devices for voice call when
          * check_usecases_codec_backend() is called below.
          */
+        ALOGI("%s: VOICE_CALL is active", __func__);
         if (voice_is_in_call(adev)) {
             vc_usecase = get_usecase_from_list(adev,
                                                get_voice_usecase_id_from_list(adev));
@@ -824,6 +827,7 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
 
     enable_audio_route(adev, usecase);
 
+    ALOGI("%s: exit", __func__);
 #ifdef USES_AUDIO_AMPLIFIER
     /* Rely on amplifier_set_devices to distinguish between in/out devices */
     amplifier_set_devices(in_snd_device);
@@ -1677,7 +1681,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int ret = 0, val = 0, err;
     bool select_new_device = false;
 
-    ALOGD("%s: enter: usecase(%d: %s) kvpairs: %s",
+    ALOGI("%s: enter: usecase(%d: %s) kvpairs: %s",
           __func__, out->usecase, use_case_table[out->usecase], kvpairs);
     parms = str_parms_create_str(kvpairs);
     err = str_parms_get_str(parms, AUDIO_PARAMETER_STREAM_ROUTING, value, sizeof(value));
@@ -1761,7 +1765,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     }
 
     str_parms_destroy(parms);
-    ALOGV("%s: exit: code(%d)", __func__, ret);
+    ALOGI("%s: exit: code(%d)", __func__, ret);
     return ret;
 }
 
@@ -2713,7 +2717,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     struct audio_device *adev = out->dev;
     int ret = 0;
 
-    ALOGD("%s: enter:stream_handle(%p)",__func__, out);
+    ALOGI("%s: enter:stream_handle(%p)",__func__, out);
 #ifdef COMPRESS_VOIP_ENABLED
     if (out->usecase == USECASE_COMPRESS_VOIP_CALL) {
         ret = voice_extn_compress_voip_close_output_stream(&stream->common);
@@ -2733,8 +2737,12 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     }
     pthread_cond_destroy(&out->cond);
     pthread_mutex_destroy(&out->lock);
+    if (adev->primary_output != NULL) {
+        free(adev->primary_output);
+        adev->primary_output = NULL;
+    }
     free(stream);
-    ALOGV("%s: exit", __func__);
+    ALOGI("%s: exit", __func__);
 }
 
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
@@ -2928,6 +2936,8 @@ static int adev_get_master_mute(struct audio_hw_device *dev, bool *muted)
 static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
 {
     struct audio_device *adev = (struct audio_device *)dev;
+    ALOGI("%s: mode %x", __func__, mode);
+
     pthread_mutex_lock(&adev->lock);
     if (adev->mode != mode) {
         ALOGD("%s mode %d\n", __func__, mode);
