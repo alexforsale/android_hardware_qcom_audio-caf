@@ -2738,10 +2738,18 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     pthread_cond_destroy(&out->cond);
     pthread_mutex_destroy(&out->lock);
     if (adev->primary_output != NULL) {
+        /* Stream is part of primary_output, so check if not causing a
+         * double free when releasing the stream */
+        ALOGI("%s: stream is the primary output", __func__);
+        if (&adev->primary_output->stream != stream)
+            free(stream);
         free(adev->primary_output);
         adev->primary_output = NULL;
+    } else {
+        /* In case we're not the primary output, just release the stream */
+        ALOGI("%s: stream is not the primary output", __func__);
+        free(stream);
     }
-    free(stream);
     ALOGI("%s: exit", __func__);
 }
 
